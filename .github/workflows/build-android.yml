@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install system dependencies
       run: |
@@ -22,18 +22,23 @@ jobs:
       run: |
         pip install cython buildozer
 
-    - name: Install Android SDK
+    - name: Install Android SDK + Build Tools + AIDL
+      env:
+        ANDROID_HOME: /usr/local/lib/android/sdk
       run: |
-        mkdir -p $ANDROID_HOME
+        sudo mkdir -p $ANDROID_HOME
+        sudo chown $USER:$USER $ANDROID_HOME -R
         yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
-        sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+        sdkmanager --sdk_root=$ANDROID_HOME "tools" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
     - name: Build debug APK with Buildozer
+      env:
+        ANDROID_HOME: /usr/local/lib/android/sdk
       run: |
         buildozer android debug
 
     - name: Upload APK artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: StockViewerIndia.apk
         path: bin/*.apk
