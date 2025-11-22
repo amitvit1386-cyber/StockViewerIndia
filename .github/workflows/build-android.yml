@@ -2,36 +2,38 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            python3-pip python3-setuptools git zip unzip openjdk-17-jdk \
-            zlib1g-dev libncurses5-dev libffi-dev libssl-dev \
-            libsqlite3-dev libbz2-dev liblzma-dev
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-pip python3-setuptools git zip openjdk-17-jdk
 
-      - name: Install buildozer and cython
-        run: |
-          python3 -m pip install --upgrade pip
-          pip3 install buildozer cython==0.29.36
+    - name: Install Buildozer & Cython
+      run: |
+        pip install cython buildozer
 
-      - name: Build debug APK with Buildozer
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-        run: |
-          buildozer android debug
+    - name: Install Android SDK
+      run: |
+        mkdir -p $ANDROID_HOME
+        yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
+        sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: StockViewerIndia-apk
-          path: bin/*.apk
+    - name: Build debug APK with Buildozer
+      run: |
+        buildozer android debug
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: StockViewerIndia.apk
+        path: bin/*.apk
