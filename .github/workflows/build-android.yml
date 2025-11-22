@@ -22,7 +22,7 @@ jobs:
             libffi-dev libssl-dev zlib1g zlib1g-dev liblz-dev autoconf automake \
             pkg-config libtool
 
-      - name: Install Buildozer + P4A
+      - name: Install Buildozer + Python-for-Android
         run: |
           sudo pip3 install cython buildozer python-for-android
 
@@ -45,18 +45,31 @@ jobs:
 
       - name: Set Android SDK environment paths
         run: |
-          echo "AIDL search:"
-          find "$ANDROID_SDK_ROOT/build-tools" -name aidl || true
-
           export PATH="$ANDROID_SDK_ROOT/platform-tools:$PATH"
           export PATH="$ANDROID_SDK_ROOT/emulator:$PATH"
           export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
           export PATH="$ANDROID_SDK_ROOT/build-tools/33.0.2:$PATH"
           export PATH="$ANDROID_SDK_ROOT/build-tools/30.0.3:$PATH"
           export ANDROIDSDK="$ANDROID_SDK_ROOT"
+          echo "Searching AIDL in SDK:"
+          find "$ANDROID_SDK_ROOT/build-tools" -name aidl
 
-          echo "AIDL binary:"
-          which aidl || true
+      - name: Copy Android build tools to Buildozer directory
+        run: |
+          mkdir -p $HOME/.buildozer/android/platform/android-sdk/build-tools
+          cp -r $ANDROID_SDK_ROOT/build-tools/* \
+            $HOME/.buildozer/android/platform/android-sdk/build-tools/
+
+          mkdir -p $HOME/.buildozer/android/platform/android-sdk/platforms
+          cp -r $ANDROID_SDK_ROOT/platforms/* \
+            $HOME/.buildozer/android/platform/android-sdk/platforms/
+
+          mkdir -p $HOME/.buildozer/android/platform/android-sdk/platform-tools
+          cp -r $ANDROID_SDK_ROOT/platform-tools/* \
+            $HOME/.buildozer/android/platform/android-sdk/platform-tools/
+
+          echo "Searching AIDL in Buildozer SDK:"
+          find $HOME/.buildozer/android/platform/android-sdk/build-tools -name aidl
 
       - name: Build APK with Buildozer
         run: |
