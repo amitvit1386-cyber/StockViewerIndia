@@ -71,6 +71,21 @@ jobs:
           echo "Searching AIDL in Buildozer SDK:"
           find $HOME/.buildozer/android/platform/android-sdk/build-tools -name aidl
 
+      - name: Create legacy tools wrapper for Buildozer
+        run: |
+          LEGACY="$HOME/.buildozer/android/platform/android-sdk/tools/bin"
+          mkdir -p "$LEGACY"
+          echo '#!/bin/bash' > "$LEGACY/sdkmanager"
+          echo "\"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager\" \"\$@\"" >> "$LEGACY/sdkmanager"
+          chmod +x "$LEGACY/sdkmanager"
+
+          echo '#!/bin/bash' > "$LEGACY/avdmanager"
+          echo "\"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager\" \"\$@\"" >> "$LEGACY/avdmanager"
+          chmod +x "$LEGACY/avdmanager"
+
+          echo "Verifying wrapper:"
+          ls -l "$LEGACY"
+
       - name: Build APK with Buildozer
         run: |
           buildozer android debug
