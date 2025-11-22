@@ -1,4 +1,36 @@
-- name: Install Android command-line tools
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git zip unzip openjdk-17-jdk python3 python3-pip \
+            python3-setuptools python3-wheel libffi-dev libssl-dev \
+            liblz-dev zlib1g zlib1g-dev
+
+      - name: Install Buildozer
+        run: |
+          sudo pip3 install cython buildozer
+
+      - name: Install Python for Android
+        run: |
+          sudo pip3 install python-for-android
+
+      - name: Install Android command-line tools
         run: |
           mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
           cd "$ANDROID_SDK_ROOT/cmdline-tools"
@@ -7,17 +39,21 @@
           unzip tools.zip -d extracted
           rm tools.zip
 
-          # Detect the real folder name automatically:
           FOLDER=$(ls extracted)
           echo "Detected tools folder: $FOLDER"
-
-          # Move to latest (fix for any folder name)
           mv "extracted/$FOLDER" latest
           rm -rf extracted
 
-          echo "Verifying sdkmanager path..."
-          ls -R "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+             "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
-          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_SDK_ROOT" --licenses
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_SDK_ROOT" \
-            "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+      - name: Build APK with Buildozer
+        run: |
+          buildozer android debug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StockViewerIndia-APK
+          path: bin/*.apk
