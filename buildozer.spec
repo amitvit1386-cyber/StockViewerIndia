@@ -1,11 +1,17 @@
 [app]
+title = Stock Viewer India
+package.name = stockviewerindia
+package.domain = com.amit.nsestocks
 
-title = NSE Live Tracker
-package.name = nselivetracker
-package.domain = org.kivy
 source.include_exts = py,png,jpg,kv
 requirements = python3,kivy,requests
 orientation = portrait
+
+android.api = 33
+android.minapi = 21
+android.archs = arm64-v8a, armeabi-v7a
+android.build_tools_version = 33.0.2
+android.permissions = INTERNET
 
 # (str) Title of your application
 #title = My Application
@@ -37,9 +43,6 @@ source.dir = .
 
 # (str) Application versioning (method 1)
 version = 0.1
-android.build_tools_version = 33.0.2
-android.api = 33
-android.minapi = 21
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
