@@ -18,11 +18,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Fix Root Mode Interactive Issue
+        run: |
+          echo "[buildozer]" >> buildozer.spec
+          echo "allow_root = 1" >> buildozer.spec
+
       - name: Build APK
         run: |
-          echo ">>> Cleaning previous builds..."
           buildozer android clean || true
-          echo ">>> Building new APK..."
           buildozer android debug
 
       - name: Upload APK Artifact
