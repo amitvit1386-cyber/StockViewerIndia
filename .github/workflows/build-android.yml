@@ -11,38 +11,45 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Install required dependencies
+    - name: Install required Ubuntu dependencies
       run: |
         sudo apt update
         sudo apt install -y git unzip zip python3-pip libstdc++-12-dev libz-dev libffi-dev build-essential libssl-dev openjdk-17-jdk
 
-    - name: Install Buildozer & p4a
+    - name: Install Buildozer and Python-for-Android
       run: |
         pip install --upgrade pip cython buildozer python-for-android
 
     - name: Install Android SDK + NDK
       run: |
-        ANDROID_HOME=$HOME/android-sdk
+        export ANDROID_HOME=$HOME/android-sdk
         mkdir -p $ANDROID_HOME/cmdline-tools
         cd $ANDROID_HOME/cmdline-tools
+        
         wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip commandlinetools-linux-11076708_latest.zip -d latest
+        unzip -q commandlinetools-linux-11076708_latest.zip
+        
+        # IMPORTANT FIX: Move into latest folder
+        mkdir -p latest
+        mv cmdline-tools/* latest/
+        rm -rf cmdline-tools
+
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
 
-    - name: Export Android Paths
+    - name: Export Android Environment Paths
       run: |
         echo "export ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
         echo "export ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
         echo "export PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/33.0.2:$PATH" >> $GITHUB_ENV
         echo "export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Build APK
+    - name: Build APK with Buildozer
       run: |
         buildozer android debug
 
-    - name: Upload APK
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: NSE-StockViewer APK
+        name: NSE-StockViewer-APK
         path: bin/*.apk
