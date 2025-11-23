@@ -7,61 +7,31 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # Use the official Kivy Buildozer image which already contains
+    # Android SDK, NDK, build-tools, etc.
+    container:
+      image: kivy/buildozer
+
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Install required Ubuntu dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y git unzip zip python3-pip libstdc++-12-dev libz-dev libffi-dev build-essential libssl-dev openjdk-17-jdk
+      - name: Show environment (debug)
+        run: |
+          python --version
+          buildozer --version
+          ls
 
-    - name: Install Buildozer and Python-for-Android
-      run: |
-        pip install --upgrade pip cython buildozer python-for-android
+      - name: Build APK with Buildozer
+        run: |
+          # Clean previous builds (optional but safer)
+          buildozer android clean || true
 
-    - name: Install Android SDK + NDK manually
-      run: |
-        export ANDROID_HOME=$HOME/android-sdk
-        mkdir -p $ANDROID_HOME/cmdline-tools
-        
-        cd $ANDROID_HOME/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-11076708_latest.zip
-        
-        mkdir -p latest
-        mv cmdline-tools/* latest/
-        rm -rf cmdline-tools
-        
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
-        
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME \
-         "platform-tools" \
-         "platforms;android-33" \
-         "build-tools;33.0.2" \
-         "ndk;25.2.9519653"
+          # Build debug APK
+          buildozer android debug
 
-        # Force license acceptance by creating folder
-        mkdir -p $ANDROID_HOME/licenses
-        echo -n > $ANDROID_HOME/licenses/android-sdk-license
-        echo -n > $ANDROID_HOME/licenses/android-googletv-license
-
-    - name: Export Android Environment Paths
-      run: |
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/33.0.2:$PATH" >> $GITHUB_ENV
-        echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
-
-    - name: Build APK with Buildozer (using our SDK)
-      run: |
-        export ANDROIDSDK=$HOME/android-sdk
-        export ANDROIDNDK=$HOME/android-sdk/ndk/25.2.9519653
-        export ANDROIDAPI=33
-        export ANDROIDMINAPI=21
-        buildozer android debug
-
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: NSE-StockViewer-APK
-        path: bin/*.apk
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StockViewerIndia-APK
+          path: bin/*.apk
