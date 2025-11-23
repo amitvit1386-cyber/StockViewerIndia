@@ -7,8 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Use the official Kivy Buildozer image which already contains
-    # Android SDK, NDK, build-tools, etc.
+    # Use official Kivy Buildozer image with Android SDK/NDK preinstalled
     container:
       image: kivy/buildozer
 
@@ -16,17 +15,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Allow Buildozer to run as root
+        run: |
+          echo "BUILDOZER_ALLOW_ROOT=1" >> $GITHUB_ENV
+
       - name: Show environment (debug)
         run: |
-          python --version
-          buildozer --version
-          ls
+          echo "Python version:"
+          python3 --version || python --version || true
+          echo "Buildozer version:"
+          buildozer --version || true
+          echo "Repo contents:"
+          ls -R
 
       - name: Build APK with Buildozer
         run: |
-          # Clean previous builds (optional but safer)
+          export BUILDOZER_ALLOW_ROOT=1
+          # Clean previous builds (non-fatal if first run)
           buildozer android clean || true
-
           # Build debug APK
           buildozer android debug
 
