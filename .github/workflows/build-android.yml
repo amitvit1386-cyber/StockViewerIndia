@@ -1,66 +1,62 @@
 name: Build Android APK
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             openjdk-17-jdk wget unzip zip \
-            libncurses5 libffi-dev build-essential \
+            libffi-dev build-essential \
             python3 python3-pip python3-venv
 
-      - name: Install Python Build Tools
+      - name: Install Buildozer & Cython
         run: |
-          python3 -m pip install --upgrade pip setuptools wheel
-          python3 -m pip install buildozer cython
+          python3 -m pip install --upgrade pip
+          pip install buildozer cython==0.29.33
 
-      - name: Install Android SDK + Build Tools
+      - name: Create Buildozer working directory
+        run: mkdir -p $HOME/.buildozer
+
+      - name: Install Android SDK + NDK + Build-Tools
         run: |
           mkdir -p $HOME/android-sdk
           cd $HOME/android-sdk
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
-          unzip -o sdk.zip -d cmdline-tools
-          mv cmdline-tools/cmdline-tools cmdline-tools/latest
+          unzip sdk.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/* cmdline-tools/latest/
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
+            "platform-tools" "build-tools;36.0.0" "platforms;android-33" "ndk;25.2.9519653" "tools"
 
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653" "patcher;v4" || true
-
-      - name: Set Android Environment
+      - name: Set environment for Buildozer
         run: |
-          echo "export ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "export ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "export ANDROID_NDK_HOME=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
-          echo "export ANDROIDNDK=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
-          echo "export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
+          echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/.local/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Force Root Permissions
+      - name: Clean previous builds
         run: |
-          echo "allow_root = 1" >> buildozer.spec
+          if [ -d ".buildozer" ]; then rm -rf .buildozer; fi
 
       - name: Build APK
-        env:
-          BUILDOZER_ALLOW_ROOT: "1"
-          APP_ALLOW_ROOT: "1"
-          BUILDOZER_ROOT: "1"
         run: |
-          buildozer android clean || true
-          buildozer android debug --verbose
+          buildozer android debug
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4   # << FIXED VERSION HERE
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: StockViewerIndia.apk
-          path: bin/*.apk
+          path: ./bin/*.apk
