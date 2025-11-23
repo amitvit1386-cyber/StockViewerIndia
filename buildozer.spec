@@ -122,7 +122,9 @@ fullscreen = 0
 
 # (int) Android SDK version to use
 #android.sdk = 20
-
+android.ndk = 25b
+android.sdk = 33
+p4a.branch = master
 # (str) Android NDK version to use
 #android.ndk = 23b
 
