@@ -7,36 +7,25 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Use official Kivy Buildozer image with Android SDK/NDK preinstalled
     container:
       image: kivy/buildozer
+      env:
+        BUILDOZER_ALLOW_ROOT: 1
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Allow Buildozer to run as root
+      - name: Build APK
         run: |
-          echo "BUILDOZER_ALLOW_ROOT=1" >> $GITHUB_ENV
-
-      - name: Show environment (debug)
-        run: |
-          echo "Python version:"
-          python3 --version || python --version || true
-          echo "Buildozer version:"
-          buildozer --version || true
-          echo "Repo contents:"
-          ls -R
-
-      - name: Build APK with Buildozer
-        run: |
-          export BUILDOZER_ALLOW_ROOT=1
-          # Clean previous builds (non-fatal if first run)
+          echo ">>> Cleaning previous builds..."
           buildozer android clean || true
-          # Build debug APK
+          echo ">>> Building new APK..."
           buildozer android debug
 
-      - name: Upload APK artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: StockViewerIndia-APK
