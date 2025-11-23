@@ -20,8 +20,14 @@ jobs:
 
       - name: Fix Root Mode Interactive Issue
         run: |
-          echo "[buildozer]" >> buildozer.spec
-          echo "allow_root = 1" >> buildozer.spec
+          # If [buildozer] section exists -> only add allow_root if missing
+          if grep -q "^\[buildozer\]" buildozer.spec; then
+              if ! grep -q "^allow_root" buildozer.spec; then
+                  sed -i "/^\[buildozer\]/a allow_root = 1" buildozer.spec
+              fi
+          else
+              echo -e "\n[buildozer]\nallow_root = 1" >> buildozer.spec
+          fi
 
       - name: Build APK
         run: |
