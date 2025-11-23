@@ -2,8 +2,9 @@
 title = Stock Viewer India
 package.name = stockviewerindia
 package.domain = com.amit.nsestocks
+# Copy sound files into APK
+source.include_exts = wav, mp3, png, jpg, py, json
 
-source.include_exts = py,png,jpg,kv
 requirements = python3,kivy,requests
 orientation = portrait
 
@@ -12,7 +13,9 @@ android.minapi = 21
 android.archs = arm64-v8a, armeabi-v7a
 android.build_tools_version = 33.0.2
 android.accept_sdk_license = True
-android.permissions = INTERNET
+#android.permissions = INTERNET
+android.permissions = INTERNET, VIBRATE, RECORD_AUDIO, FOREGROUND_SERVICE
+android.use_androidx = true
 
 # (str) Title of your application
 #title = My Application
