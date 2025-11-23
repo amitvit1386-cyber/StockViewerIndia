@@ -6,48 +6,59 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+    - name: Install Linux Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config zip unzip libncurses5-compat-libs \
+        openjdk-17-jdk python3 python3-pip python3-setuptools python3-wheel \
+        libffi-dev libssl-dev git curl
 
-      - name: Install Linux Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libncurses5 pkg-config zip unzip openjdk-17-jdk python3 python3-pip
+    - name: Install Buildozer & Cython
+      run: |
+        pip install --upgrade pip
+        pip install buildozer cython
 
-      - name: Install Buildozer & Cython
-        run: |
-          pip3 install --upgrade pip setuptools wheel
-          pip3 install buildozer cython
+    - name: Create Android SDK folder
+      run: |
+        mkdir -p $HOME/android-sdk/cmdline-tools
 
-      - name: Download Android SDK
-        run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          cd $HOME/android-sdk/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip -O cmd.zip
-          unzip cmd.zip -d latest
-          rm cmd.zip
+    - name: Download Android Commandline Tools
+      run: |
+        cd $HOME/android-sdk/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip commandlinetools-linux-*.zip
+        mkdir -p latest
+        mv cmdline-tools/* latest/
+        rm -rf cmdline-tools-linux-* commandlinetools-linux-*.zip
 
-      - name: Accept Android Licenses
-        run: |
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
+    - name: Install Android SDK components (platform, build-tools, NDK, AIDL)
+      run: |
+        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
+          "platform-tools" \
+          "build-tools;36.0.0" \
+          "platforms;android-33" \
+          "ndk;25.1.8937393" \
+          "cmdline-tools;latest"
 
-      - name: Install Required Platforms & Build Tools
-        run: |
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
-            "platforms;android-33" \
-            "build-tools;33.0.2" \
-            "platform-tools"
+    - name: Verify AIDL exists
+      run: |
+        ls $HOME/android-sdk/build-tools/36.0.0/aidl
 
-      - name: Build the APK
-        env:
-          ANDROIDSDK: $HOME/android-sdk
-        run: |
-          buildozer android debug
+    - name: Build APK with Buildozer
+      run: |
+        export ANDROIDSDK=$HOME/android-sdk
+        export ANDROIDNDK=$HOME/android-sdk/ndk/25.1.8937393
+        export ANDROIDAPI=33
+        export ANDROIDMINAPI=21
+        buildozer android debug
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: StockViewerIndia.apk
-          path: bin/*.apk
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: StockViewerIndia-APK
+        path: bin/*.apk
