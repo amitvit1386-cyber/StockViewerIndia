@@ -7,7 +7,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Use official Kivy Buildozer image with Android SDK/NDK preinstalled
     container:
       image: kivy/buildozer
       env:
@@ -28,17 +27,13 @@ jobs:
           cfg = configparser.ConfigParser()
           cfg.read(spec_file)
 
-          # Ensure [app] section exists
+          # Add required values to [app]
           if not cfg.has_section("app"):
-            raise SystemExit("ERROR: [app] section not found in buildozer.spec")
+              raise SystemExit("ERROR: [app] section missing in buildozer.spec")
 
-          # Ensure android.accept_sdk_license = True
-          if not cfg.has_option("app", "android.accept_sdk_license"):
-              cfg.set("app", "android.accept_sdk_license", "True")
-          else:
-              cfg.set("app", "android.accept_sdk_license", "True")
+          cfg.set("app", "android.accept_sdk_license", "True")
 
-          # Ensure [buildozer] section exists with allow_root = 1
+          # Add allow_root to [buildozer]
           if not cfg.has_section("buildozer"):
               cfg.add_section("buildozer")
           cfg.set("buildozer", "allow_root", "1")
@@ -47,20 +42,18 @@ jobs:
               cfg.write(f)
           EOF
 
-      - name: Show Buildozer version and spec
+      - name: Show Buildozer spec header
         run: |
-          buildozer --version || true
-          echo "------ buildozer.spec (head) ------"
-          head -n 60 buildozer.spec || true
+          echo "------ buildozer.spec (first lines) -------"
+          head -n 50 buildozer.spec
 
-      - name: Build APK with Buildozer
-        env:
-          BUILDOZER_ALLOW_ROOT: "1"
+      - name: Build APK (force no prompt)
         run: |
-          echo ">>> Cleaning previous builds (if any)..."
-          buildozer android clean || true
-          echo ">>> Building debug APK..."
-          buildozer -v android debug
+          export BUILDOZER_ALLOW_ROOT=1
+          echo ">>> Cleaning old build (ignore warnings)..."
+          yes | buildozer android clean || true
+          echo ">>> Building new APK..."
+          yes | buildozer -v android debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
