@@ -2,61 +2,83 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # 1) Checkout your repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2) Install system dependencies (NO libncurses5 here)
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            openjdk-17-jdk wget unzip zip \
-            libffi-dev build-essential \
-            python3 python3-pip python3-venv
+            openjdk-17-jdk \
+            wget \
+            unzip \
+            zip \
+            libffi-dev \
+            build-essential \
+            python3 \
+            python3-pip \
+            python3-venv
 
-      - name: Install Buildozer & Cython
+      # 3) Install Python tools (Buildozer + Cython)
+      - name: Install Buildozer and Cython
         run: |
           python3 -m pip install --upgrade pip
-          pip install buildozer cython==0.29.33
+          pip install buildozer cython
 
-      - name: Create Buildozer working directory
-        run: mkdir -p $HOME/.buildozer
-
-      - name: Install Android SDK + NDK + Build-Tools
+      # 4) Install Android SDK / NDK / Build-tools
+      - name: Install Android SDK + NDK + Build-tools
         run: |
-          mkdir -p $HOME/android-sdk
-          cd $HOME/android-sdk
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
-          unzip sdk.zip
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/* cmdline-tools/latest/
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
-            "platform-tools" "build-tools;36.0.0" "platforms;android-33" "ndk;25.2.9519653" "tools"
+          ANDROID_SDK_ROOT=$HOME/android-sdk
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          cd "$ANDROID_SDK_ROOT/cmdline-tools"
 
-      - name: Set environment for Buildozer
+          # Download commandline tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip -d .
+          mkdir -p latest
+          mv cmdline-tools/* latest/
+          rm -rf cmdline-tools cmdline-tools.zip
+
+          # Accept licenses and install packages
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_SDK_ROOT" --licenses || true
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_SDK_ROOT" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2" \
+            "ndk;25.2.9519653"
+
+      # 5) Export Android environment so Buildozer can see SDK/NDK
+      - name: Set Android environment variables
         run: |
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/.local/bin:$PATH" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROIDNDK=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Clean previous builds
+      # 6) (Optional) Show debug info
+      - name: Show Buildozer version
         run: |
-          if [ -d ".buildozer" ]; then rm -rf .buildozer; fi
+          buildozer --version || echo "Buildozer installed"
 
-      - name: Build APK
+      # 7) Build the APK
+      - name: Build APK with Buildozer
         run: |
+          buildozer android clean || true
           buildozer android debug
 
-      - name: Upload APK
+      # 8) Upload built APK as artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: StockViewerIndia.apk
-          path: ./bin/*.apk
+          name: StockViewerIndia-APK
+          path: bin/*.apk
