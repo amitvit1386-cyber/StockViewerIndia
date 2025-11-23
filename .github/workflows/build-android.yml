@@ -20,41 +20,44 @@ jobs:
       run: |
         pip install --upgrade pip cython buildozer python-for-android
 
-    - name: Install Android SDK + NDK
+    - name: Install Android SDK + NDK manually
       run: |
         export ANDROID_HOME=$HOME/android-sdk
         mkdir -p $ANDROID_HOME/cmdline-tools
+        
         cd $ANDROID_HOME/cmdline-tools
-
         wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
         unzip -q commandlinetools-linux-11076708_latest.zip
-
+        
         mkdir -p latest
         mv cmdline-tools/* latest/
         rm -rf cmdline-tools
+        
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
+        
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME \
+         "platform-tools" \
+         "platforms;android-33" \
+         "build-tools;33.0.2" \
+         "ndk;25.2.9519653"
 
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
-
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-          "platform-tools" \
-          "platforms;android-33" \
-          "build-tools;33.0.2" \
-          "build-tools;36.1.0" \
-          "ndk;25.2.9519653"
+        # Force license acceptance by creating folder
+        mkdir -p $ANDROID_HOME/licenses
+        echo -n > $ANDROID_HOME/licenses/android-sdk-license
+        echo -n > $ANDROID_HOME/licenses/android-googletv-license
 
     - name: Export Android Environment Paths
       run: |
-        echo "export ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "export ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "export PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/33.0.2:$HOME/android-sdk/build-tools/36.1.0:$PATH" >> $GITHUB_ENV
-        echo "export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/33.0.2:$PATH" >> $GITHUB_ENV
+        echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Verify AIDL Exists
+    - name: Build APK with Buildozer (using our SDK)
       run: |
-        ls -la $HOME/android-sdk/build-tools/36.1.0/aidl || (echo "AIDL not found!" && exit 1)
-
-    - name: Build APK with Buildozer
-      run: |
+        export ANDROIDSDK=$HOME/android-sdk
+        export ANDROIDNDK=$HOME/android-sdk/ndk/25.2.9519653
+        export ANDROIDAPI=33
+        export ANDROIDMINAPI=21
         buildozer android debug
 
     - name: Upload APK Artifact
