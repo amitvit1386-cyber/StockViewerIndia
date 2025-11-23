@@ -1,41 +1,87 @@
 name: Build Android APK
 
 on:
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    container:
-      image: kivy/buildozer
-      env:
-        BUILDOZER_ALLOW_ROOT: 1
-        LC_ALL: C.UTF-8
-        LANG: C.UTF-8
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Fix Root Mode Interactive Issue
+      # ---------------------
+      # Install system deps
+      # ---------------------
+      - name: Install Dependencies
         run: |
-          # If [buildozer] section exists -> only add allow_root if missing
-          if grep -q "^\[buildozer\]" buildozer.spec; then
-              if ! grep -q "^allow_root" buildozer.spec; then
-                  sed -i "/^\[buildozer\]/a allow_root = 1" buildozer.spec
-              fi
-          else
-              echo -e "\n[buildozer]\nallow_root = 1" >> buildozer.spec
-          fi
+          sudo apt-get update
+          sudo apt-get install -y \
+            openjdk-17-jdk wget unzip zip \
+            libncurses5 libffi-dev build-essential \
+            python3 python3-pip python3-venv
 
+      # ---------------------
+      # Install Python deps
+      # ---------------------
+      - name: Install Python Build Tools
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel
+          python3 -m pip install buildozer cython
+
+      # ---------------------
+      # Install Android SDK/NDK & accept license
+      # ---------------------
+      - name: Install Android SDK + Build Tools
+        run: |
+          mkdir -p $HOME/android-sdk
+          cd $HOME/android-sdk
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk.zip
+          unzip -o sdk.zip -d cmdline-tools
+          mv cmdline-tools/cmdline-tools cmdline-tools/latest
+
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653" "patcher;v4" || true
+
+      # ---------------------
+      # Ensure buildozer sees SDK
+      # ---------------------
+      - name: Set Android Environment
+        run: |
+          echo "export ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "export ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "export ANDROID_NDK_HOME=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "export ANDROIDNDK=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
+
+      # ---------------------
+      # Ensure buildozer allows root
+      # ---------------------
+      - name: Force Root Permissions
+        run: |
+          echo "allow_root = 1" >> buildozer.spec
+
+      # ---------------------
+      # Build APK
+      # ---------------------
       - name: Build APK
+        env:
+          BUILDOZER_ALLOW_ROOT: "1"
+          APP_ALLOW_ROOT: "1"
+          BUILDOZER_ROOT: "1"
         run: |
           buildozer android clean || true
-          buildozer android debug
+          buildozer android debug --verbose
 
+      # ---------------------
+      # Upload final APK
+      # ---------------------
       - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: StockViewerIndia-APK
+          name: StockViewerIndia.apk
           path: bin/*.apk
